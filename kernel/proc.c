@@ -19,6 +19,8 @@ extern void forkret(void);
 static void freeproc(struct proc *p);
 //jaeuk_chocho_pa1
 static char *statename(enum procstate state);
+//jaeuk_chocho_pa1
+static char *psstatename(enum procstate state);
 
 extern char trampoline[]; // trampoline.S
 
@@ -731,6 +733,7 @@ void
 kps(int pid)
 {
   struct proc *p;
+  int printed = 0;
 
   for(p = proc; p < &proc[NPROC]; p++){
     char name[sizeof(p->name)];
@@ -750,7 +753,12 @@ kps(int pid)
     ppid = p->pid;
     release(&p->lock);
 
-    printf("%s %d %s %d\n", name, ppid, statename(state), pnice);
+    if(printed == 0){
+      //jaeuk_chocho_pa1
+      printf("name pid state priority\n");
+      printed = 1;
+    }
+    printf("%s %d %s %d\n", name, ppid, psstatename(state), pnice);
 
     if(pid != 0)
       return;
@@ -839,4 +847,22 @@ statename(enum procstate state)
   if(state >= 0 && state < NELEM(states) && states[state])
     return states[state];
   return "???";
+}
+
+//jaeuk_chocho_pa1
+static char *
+psstatename(enum procstate state)
+{
+  static char *states[] = {
+  [UNUSED]    "UNUSED",
+  [USED]      "USED",
+  [SLEEPING]  "SLEEPING",
+  [RUNNABLE]  "RUNNABLE",
+  [RUNNING]   "RUNNING",
+  [ZOMBIE]    "ZOMBIE"
+  };
+
+  if(state >= 0 && state < NELEM(states) && states[state])
+    return states[state];
+  return "UNKNOWN";
 }
