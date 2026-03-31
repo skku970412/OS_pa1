@@ -10,6 +10,7 @@
 #include "kernel/fcntl.h"
 
 char *argv[] = { "sh", 0 };
+static int banner_printed = 0;
 
 int
 main(void)
@@ -25,6 +26,13 @@ main(void)
 
   for(;;){
     printf("init: starting sh\n");
+    if(banner_printed == 0){
+      // jaeuk_chocho_2026-03-24: Print the Project 0 banner once after init starts the shell.
+      printf("Student ID: 2016310179\n");
+      printf("Name: Jaeuk Lee\n");
+      printf("========Project 0 boot message========\n");
+      banner_printed = 1;
+    }
     pid = fork();
     if(pid < 0){
       printf("init: fork failed\n");

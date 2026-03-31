@@ -91,6 +91,9 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+  //jaeuk_chocho_pa1
+  int nice;                    // Scheduling priority hint
+  uint64 sched_pass;           // Scheduler pass value for nice preference
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

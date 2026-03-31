@@ -95,6 +95,51 @@ sys_kill(void)
   return kkill(pid);
 }
 
+//jaeuk_chocho_pa1
+uint64
+sys_getnice(void)
+{
+  int pid;
+
+  argint(0, &pid);
+  return kgetnice(pid);
+}
+
+uint64
+sys_setnice(void)
+{
+  int pid, value;
+
+  argint(0, &pid);
+  argint(1, &value);
+  return ksetnice(pid, value);
+}
+
+uint64
+sys_ps(void)
+{
+  int pid;
+
+  argint(0, &pid);
+  kps(pid);
+  return 0;
+}
+
+uint64
+sys_meminfo(void)
+{
+  return freemem();
+}
+
+uint64
+sys_waitpid(void)
+{
+  int pid;
+
+  argint(0, &pid);
+  return kwaitpid(pid);
+}
+
 // return how many clock tick interrupts have occurred
 // since start.
 uint64

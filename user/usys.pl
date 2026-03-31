@@ -39,6 +39,12 @@ entry("mkdir");
 entry("chdir");
 entry("dup");
 entry("getpid");
+#jaeuk_chocho_pa1
+entry("getnice");
+entry("setnice");
+entry("ps");
+entry("meminfo");
+entry("waitpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");

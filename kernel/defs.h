@@ -59,6 +59,8 @@ void            ireclaim(int);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+//jaeuk_chocho_pa1
+uint64          freemem(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -86,6 +88,10 @@ void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
 int             kkill(int);
+//jaeuk_chocho_pa1
+int             kgetnice(int);
+int             ksetnice(int, int);
+void            kps(int);
 int             killed(struct proc*);
 void            setkilled(struct proc*);
 struct cpu*     mycpu(void);
@@ -96,6 +102,8 @@ void            sched(void);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             kwait(uint64);
+//jaeuk_chocho_pa1
+int             kwaitpid(int);
 void            wakeup(void*);
 void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);

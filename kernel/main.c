@@ -15,6 +15,10 @@ main()
     printfinit();
     printf("\n");
     printf("xv6 kernel is booting\n");
+    // jaeuk_chocho_2026-03-24: Print the Project 0 identity banner during boot.
+    printf("student id: 2016310179\n");
+    printf("name: Jaeuk Lee\n");
+    printf("message: Project 0 boot message\n");
     printf("\n");
     kinit();         // physical page allocator
     kvminit();       // create kernel page table

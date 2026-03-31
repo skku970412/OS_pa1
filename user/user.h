@@ -21,6 +21,12 @@ int mkdir(const char*);
 int chdir(const char*);
 int dup(int);
 int getpid(void);
+//jaeuk_chocho_pa1
+int getnice(int);
+int setnice(int, int);
+void ps(int);
+uint64 meminfo(void);
+int waitpid(int);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);

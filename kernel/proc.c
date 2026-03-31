@@ -17,6 +17,8 @@ struct spinlock pid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
+//jaeuk_chocho_pa1
+static char *statename(enum procstate state);
 
 extern char trampoline[]; // trampoline.S
 
@@ -124,6 +126,9 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  //jaeuk_chocho_pa1
+  p->nice = 20;
+  p->sched_pass = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -168,6 +173,9 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  //jaeuk_chocho_pa1
+  p->nice = 20;
+  p->sched_pass = 0;
   p->state = UNUSED;
 }
 
@@ -414,6 +422,53 @@ kwait(uint64 addr)
   }
 }
 
+//jaeuk_chocho_pa1
+int
+kwaitpid(int pid)
+{
+  struct proc *pp;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+
+  for(;;){
+    int found = 0;
+
+    for(pp = proc; pp < &proc[NPROC]; pp++){
+      if(pp->pid != pid)
+        continue;
+
+      found = 1;
+      if(pp->parent != p){
+        release(&wait_lock);
+        return -1;
+      }
+
+      acquire(&pp->lock);
+      if(pp->state == ZOMBIE){
+        freeproc(pp);
+        release(&pp->lock);
+        release(&wait_lock);
+        return 0;
+      }
+      release(&pp->lock);
+
+      if(killed(p)){
+        release(&wait_lock);
+        return -1;
+      }
+
+      sleep(p, &wait_lock);
+      break;
+    }
+
+    if(!found){
+      release(&wait_lock);
+      return -1;
+    }
+  }
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -424,6 +479,8 @@ kwait(uint64 addr)
 void
 scheduler(void)
 {
+  //jaeuk_chocho_pa1
+  struct proc *best;
   struct proc *p;
   struct cpu *c = mycpu();
 
@@ -438,23 +495,42 @@ scheduler(void)
     intr_off();
 
     int found = 0;
+    //jaeuk_chocho_pa1
+    best = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+      //jaeuk_chocho_pa1
+      if(p->state == RUNNABLE &&
+         (best == 0 ||
+          p->sched_pass < best->sched_pass ||
+          (p->sched_pass == best->sched_pass && p->nice < best->nice) ||
+          (p->sched_pass == best->sched_pass && p->nice == best->nice &&
+           p->pid < best->pid))) {
+        if(best)
+          release(&best->lock);
+        best = p;
+        continue;
       }
       release(&p->lock);
     }
+
+    //jaeuk_chocho_pa1
+    if(best){
+      // Switch to chosen process. It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      best->state = RUNNING;
+      best->sched_pass += best->nice + 1;
+      c->proc = best;
+      swtch(&c->context, &best->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+      found = 1;
+      release(&best->lock);
+    }
+
     if(found == 0) {
       // nothing to run; stop running on this core until an interrupt.
       asm volatile("wfi");
@@ -610,6 +686,77 @@ kkill(int pid)
   return -1;
 }
 
+//jaeuk_chocho_pa1
+int
+kgetnice(int pid)
+{
+  struct proc *p;
+  int nice;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->state != UNUSED && p->pid == pid){
+      nice = p->nice;
+      release(&p->lock);
+      return nice;
+    }
+    release(&p->lock);
+  }
+  return -1;
+}
+
+//jaeuk_chocho_pa1
+int
+ksetnice(int pid, int value)
+{
+  struct proc *p;
+
+  if(value < 0 || value > 39)
+    return -1;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->state != UNUSED && p->pid == pid){
+      p->nice = value;
+      release(&p->lock);
+      return 0;
+    }
+    release(&p->lock);
+  }
+  return -1;
+}
+
+//jaeuk_chocho_pa1
+void
+kps(int pid)
+{
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    char name[sizeof(p->name)];
+    enum procstate state;
+    int pnice;
+    int ppid;
+
+    acquire(&p->lock);
+    if(p->state == UNUSED || (pid != 0 && p->pid != pid)){
+      release(&p->lock);
+      continue;
+    }
+
+    safestrcpy(name, p->name, sizeof(name));
+    state = p->state;
+    pnice = p->nice;
+    ppid = p->pid;
+    release(&p->lock);
+
+    printf("%s %d %s %d\n", name, ppid, statename(state), pnice);
+
+    if(pid != 0)
+      return;
+  }
+}
+
 void
 setkilled(struct proc *p)
 {
@@ -665,6 +812,21 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 void
 procdump(void)
 {
+  struct proc *p;
+
+  printf("\n");
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    printf("%d %s %s", p->pid, statename(p->state), p->name);
+    printf("\n");
+  }
+}
+
+//jaeuk_chocho_pa1
+static char *
+statename(enum procstate state)
+{
   static char *states[] = {
   [UNUSED]    "unused",
   [USED]      "used",
@@ -673,18 +835,8 @@ procdump(void)
   [RUNNING]   "run   ",
   [ZOMBIE]    "zombie"
   };
-  struct proc *p;
-  char *state;
 
-  printf("\n");
-  for(p = proc; p < &proc[NPROC]; p++){
-    if(p->state == UNUSED)
-      continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-    printf("%d %s %s", p->pid, state, p->name);
-    printf("\n");
-  }
+  if(state >= 0 && state < NELEM(states) && states[state])
+    return states[state];
+  return "???";
 }
